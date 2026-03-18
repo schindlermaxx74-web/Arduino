@@ -74,19 +74,40 @@ void zeigeZeit(int sekunden, const char* label) {
 // false bei Abbruch wegen Abwesenheit.
 // ============================================
 bool timerMitPruefung(int dauerSek, const char* label) {
-  for (int verbleibend = dauerSek; verbleibend >= 0; verbleibend--) {
+  int verbleibend = dauerSek;
+
+  while (verbleibend >= 0) {
     zeigeZeit(verbleibend, label);
 
     // Abstandspruefung
     if (!checkDistance()) {
-      // Erste Pruefung fehlgeschlagen -> 3 Sek warten
+      // Erste Messung fehlgeschlagen -> 9 Messungen ueber 3 Sek
+      // Timer laeuft weiter: alle 3 Messungen = 1 Sekunde
       lcd.setCursor(0, 2);
       lcd.print("Bist du noch da?");
-      delay(3000);
 
-      // Zweite Pruefung
-      if (!checkDistance()) {
-        // Abbruch
+      int fehlschlaege = 1;  // erste Messung war schon falsch
+
+      for (int i = 1; i < 9; i++) {
+        delay(333);  // 3 Messungen pro Sekunde
+
+        if (!checkDistance()) {
+          fehlschlaege++;
+        }
+
+        // Alle 3 Messungen: 1 Sekunde vergangen -> Timer aktualisieren
+        if (i % 3 == 2) {
+          verbleibend--;
+          if (verbleibend >= 0) {
+            zeigeZeit(verbleibend, label);
+            lcd.setCursor(0, 2);
+            lcd.print("Bist du noch da?");
+          }
+        }
+      }
+
+      if (fehlschlaege >= 9) {
+        // Alle 9 Messungen fehlgeschlagen -> Abbruch
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Abbruch wegen");
@@ -94,13 +115,17 @@ bool timerMitPruefung(int dauerSek, const char* label) {
         lcd.print("Abwesenheit");
         return false;
       }
-      // Zweite Pruefung ok -> weiter
+      // Mindestens eine Messung war ok -> weiter
       lcd.setCursor(0, 2);
-      lcd.print("                    ");  // Zeile loeschen
+      lcd.print("                    ");
+      // Die 3 Sekunden sind schon vergangen, naechste Iteration
+      verbleibend--;
+      continue;
     }
 
-    // 1 Sekunde warten (vereinfacht)
+    // 1 Sekunde warten
     delay(1000);
+    verbleibend--;
   }
   return true;
 }
